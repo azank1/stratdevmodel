@@ -1,13 +1,13 @@
 # stratdevmodel
 
  
-Phase 1: Trend Detection Model
-Develop a machine learning model that identifies trend states using historical crypto price data.
+Phase 1: Trend and Mean-Reversion Detection Model
+
 
 Methodology:
 1. **Data Collection & Preprocessing:**
-   - Load historical price data from **TradingView CSV exports** (e.g., `BTC.csv`, `TOTAL.csv`, `ETH.csv`)
-   - Calculate indicators such as **SMIEO, Trend Magic, and ADF trend filter**
+   - Load historical price data from **TradingView CSV exports** 
+   - Calculate indicators aggregates
    - Normalize and preprocess the data for AI training
 
 2. **Model Development (PyTorch-based AI)**
