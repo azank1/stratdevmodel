@@ -1,4 +1,4 @@
-# © 20205 azank1 / StratDev. All Rights Reserved.
+# © 2025 azank1 / StratDev. All Rights Reserved.
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
