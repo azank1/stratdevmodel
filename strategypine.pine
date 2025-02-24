@@ -1,0 +1,76 @@
+//@version=6
+strategy("Replicated ML Model (Long Only) with Risk Management", overlay=true, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// ===== User Inputs =====
+threshold = input.float(0.45, title="Entry Threshold (probability)", step=0.01)
+stopLossPerc = input.float(2.0, title="Stop Loss (%)", step=0.1)  // e.g., 2% stop loss
+takeProfitPerc = input.float(4.0, title="Take Profit (%)", step=0.1)  // e.g., 4% take profit
+
+// ===== 1) Compute Features =====
+// Calculate the natural log of the close price (for log scaling)
+float log_close = math.log(close)
+float log_close_prev = math.log(nz(close[1], close))
+float ret = log_close - log_close_prev
+
+// Compute rolling averages of the log return (for indicator features)
+float ma_short = ta.sma(ret, 10)
+float ma_long  = ta.sma(ret, 30)
+
+// ===== 2) Apply the same scaling as Python's StandardScaler =====
+// These values should come from your Python StandardScaler output.
+// Replace these placeholder values with your actual scaler mean and scale.
+float mean_return  =  0.00056
+float mean_mashort =  0.00028
+float mean_malong  = -0.00015
+
+float scale_return  = 0.0042
+float scale_mashort = 0.0025
+float scale_malong  = 0.0021
+
+// Scale the features: (value - mean) / scale
+float x_return  = (ret      - mean_return)  / scale_return
+float x_mashort = (ma_short - mean_mashort) / scale_mashort
+float x_malong  = (ma_long  - mean_malong)  / scale_malong
+
+// ===== 3) Logistic Regression Calculation =====
+// These coefficients and intercept values come from your trained Python model.
+// Replace these with your actual Python output.
+float w_return  = 0.11885477
+float w_mashort = 10.61236838
+float w_malong  =  -6.37779428
+float intercept =  -0.07724143
+
+// Compute the linear combination (z)
+float z = intercept + (w_return * x_return) + (w_mashort * x_mashort) + (w_malong * x_malong)
+
+// Compute the logistic function output (probability)
+float pred_prob = 1.0 / (1.0 + math.exp(-z))
+
+// Decision: if probability > threshold, classify as positive (1); otherwise, negative (-1)
+int predicted_state = pred_prob > threshold ? 1 : -1
+
+// ===== 4) Strategy Logic: Long Only with Risk Management =====
+// Define stop loss and take profit prices based on entry price.
+var float entryPrice = na
+
+if (predicted_state == 1)
+    // If not in a long position, enter long.
+    if (strategy.position_size <= 0)
+        strategy.entry("Long", strategy.long)
+        entryPrice := close
+else
+    // If not a positive signal, exit any long position.
+    if (strategy.position_size > 0)
+        strategy.close("Long")
+        entryPrice := na
+
+// Calculate stop loss and take profit levels (if in a position)
+if (strategy.position_size > 0)
+    float stopLevel = entryPrice * (1 - stopLossPerc / 100)
+    float profitLevel = entryPrice * (1 + takeProfitPerc / 100)
+    // Use strategy.exit to set stop loss and take profit orders.
+    strategy.exit("Exit", "Long", stop=stopLevel, limit=profitLevel)
+
+// ===== 5) Plotting =====
+plotchar(predicted_state, title="Predicted State", char='•', location=location.top, color=predicted_state == 1 ? color.green : color.red)
+plot(entryPrice, title="Entry Price", color=color.blue, style=plot.style_linebr)
