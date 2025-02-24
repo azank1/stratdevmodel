@@ -1,3 +1,4 @@
+# © 20205 azank1 / StratDev. All Rights Reserved.
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,13 +8,11 @@ import torch.optim as optim
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-# Load the CSV file
 def load_data(file):
     df = pd.read_csv(file, parse_dates=["time"], index_col="time")
     df = df[['close']]
     return df
 
-# Feature Engineering for Trend Prediction
 def feature_engineering(df):
     df['return'] = df['close'].pct_change()
     df['rolling_10'] = df['return'].rolling(window=10).mean()
@@ -21,19 +20,16 @@ def feature_engineering(df):
     df['rolling_60'] = df['return'].rolling(window=60).mean()
     df['roc'] = df['close'].pct_change(periods=10)  # Rate of Change over 10 periods
     
-    # Define Trend State based on rolling mean
     df['trend_state'] = np.where(df['rolling_10'] > df['rolling_30'], 1, 
                           np.where(df['rolling_10'] < df['rolling_30'], -1, 0))  # 1 = Uptrend, 0 = Neutral, -1 = Downtrend
     
     df.dropna(inplace=True)
     return df
 
-# Load and process data
 file = 'BTC.csv'  # Change to TOTAL.csv if needed
 df = load_data(file)
 df = feature_engineering(df)
 
-# Prepare dataset for model training
 features = ['return', 'rolling_10', 'rolling_30', 'rolling_60', 'roc']
 scaler = StandardScaler()
 X = scaler.fit_transform(df[features])
@@ -41,13 +37,11 @@ y = df['trend_state'].values  # Target: Trend states (-1, 0, 1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Convert to PyTorch tensors
 X_train_torch = torch.tensor(X_train, dtype=torch.float32)
 y_train_torch = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
 X_test_torch = torch.tensor(X_test, dtype=torch.float32)
 y_test_torch = torch.tensor(y_test, dtype=torch.float32).view(-1, 1)
 
-# Define a simple neural network classifier
 class TrendPredictionModel(nn.Module):
     def __init__(self):
         super(TrendPredictionModel, self).__init__()
@@ -62,12 +56,10 @@ class TrendPredictionModel(nn.Module):
         x = self.sigmoid(self.fc3(x))
         return x
 
-# Initialize and train model
 model = TrendPredictionModel()
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Training loop
 num_epochs = 50
 for epoch in range(num_epochs):
     optimizer.zero_grad()
@@ -79,7 +71,6 @@ for epoch in range(num_epochs):
     if epoch % 10 == 0:
         print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}')
 
-# Predictions and Visualization
 y_pred = model(X_test_torch).detach().numpy()
 y_pred = np.where(y_pred > 0.7, 1, np.where(y_pred < 0.3, -1, 0))  # Thresholds for trend classification
 
